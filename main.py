@@ -4,21 +4,41 @@ clock = pygame.time.Clock()
 
 #define game variables
 FULLSCREEN = False
-screen_width = 800
-screen_height = 800
+screen_width = 600
+screen_height = 400
 gravity = 1
 floor= screen_height - 200
 FPS = 60
 dt = clock.tick(FPS)/25
+
 #set screen
 screen = pygame.display.set_mode((screen_width,screen_height), )
 
+#set game window
+shop_size = 200
+game_window_width = screen_width - shop_size
+game_window_height = screen_height
+
+game_window = pygame.surface.Surface((game_window_width, game_window_height))
 
 #load images
 
 #define functions
+def expand(screen_width, screen_height, screen, game_window_width, game_window_height, game_window):
+    screen_width += 50
+    screen_height += 50
+    screen = pygame.display.set_mode((screen_width,screen_height))
+    game_window_width = screen_width - shop_size
+    game_window_height = screen_height
+    game_window = pygame.surface.Surface((game_window_width, game_window_height))
+
+    return screen_width, screen_height, screen, game_window_width, game_window_height, game_window
 
 #define classes
+#class button to be created
+
+#class shop where it creates buttons and gui
+
 class point():
     def __init__(self, x,y):
         self.x = x
@@ -26,25 +46,27 @@ class point():
         self.width = 10
         self.rect = pygame.rect.Rect(self.x, self.y, self.width, self.width)
     def update(self):
-        pos = pygame.mouse.get_pos()
-        mouse = pygame.rect.Rect(pos[0], pos[1], 10 ,10)
-        if pygame.mouse.get_pressed()[0] == 1:
+        #pos = pygame.mouse.get_pos()
+        #mouse = pygame.rect.Rect(pos[0], pos[1], 10 ,10)
+        #if pygame.mouse.get_pressed()[0] == 1:
                 
-                self.y = pos[1]
-                self.x = pos[0]
-        pygame.draw.circle(screen, (0,0,0), (self.x, self.y), self.width, 10)
+                #self.y = pos[1]
+                #self.x = pos[0]
+        self.x = game_window_width//2
+        self.y = game_window_height//2
+        pygame.draw.circle(game_window, (250,250,250), (self.x, self.y), self.width, 10)
 
 class One(pygame.sprite.Sprite):
     def __init__(self, centerx, centery):
         pygame.sprite.Sprite.__init__(self)
-        self.width = 40
-        self.height = 40
+        self.width = 60
+        self.height = 60
         self.x = centerx - self.width/2
         self.y = centery - self.height/2
         self.centerx = centerx
         self.centery = centery
         self.rect = pygame.rect.Rect(self.x, self.y, self.width, self.height)
-        self.image = pygame.image.load('square_one.png')
+        self.image = pygame.image.load('block_1.png')
         self.image = pygame.transform.scale(self.image, (self.width, self.height))
     
     def update(self):
@@ -69,35 +91,58 @@ class One(pygame.sprite.Sprite):
         for square in square_group:
             if not square == self:
                 drect = pygame.rect.Rect(self.x +dx, self.y+ dy, self.width, self.height)
-                if pygame.Rect.colliderect(drect, square.rect):
-                    dx = 0
-                    dy = 0
-        
+                
+                if pygame.Rect.colliderect(self.rect, square.rect):
+                        xdistance = self.centerx - square.centerx
+                        dx = xdistance//8
+                        ydistance = self.centery - square.centery
+                        dy = ydistance//8
+                else:
+                    if pygame.Rect.colliderect(drect, square.rect):
+                        dx = 0
+                        dy = 0
+                
+
+        #update position
         self.x += dx
         self.y += dy
         self.centerx = self.x + self.width/2
         self.centery = self.y + self.height/2
         self.rect = pygame.rect.Rect(self.x, self.y, self.width, self.height)
-        screen.blit(self.image, self.rect)
+        game_window.blit(self.image, self.rect)
 
+#create instances
 square_group = pygame.sprite.Group()
-p= point(screen_width/2, screen_height/2)
+p= point(game_window_width/2, game_window_height/2)
+
+#create groups
+
 
 #main game loop
 run = True
 while run:
     clock.tick(FPS)
     #screen.blit((0,0),bg_img)
-    screen.fill((250,250,250))
-
+    screen.fill((100,100,100))
+    game_window.fill((0,0,30))
     
-    #update squares
+    #update classes
     square_group.update()
     p.update()
 
     for ev in pygame.event.get():
+        #keypresses
         #fullscreen
         if ev.type == pygame.KEYDOWN:
+            #add blocks
+            if ev.key == pygame.K_SPACE:
+                pos = pygame.mouse.get_pos() 
+                one = One(pos[0]- shop_size, pos[1])
+                square_group.add(one)
+            if ev.key == pygame.K_e:
+                #expand the window on both axises
+                screen_width, screen_height, screen, game_window_width, game_window_height, game_window =expand(screen_width, screen_height, screen, game_window_width, game_window_height, game_window)
+            
             if ev.key == pygame.K_f:
                 if FULLSCREEN:
                     screen = pygame.display.set_mode((screen_width,screen_height), pygame.SCALED|pygame.FULLSCREEN)
@@ -105,13 +150,11 @@ while run:
                 else:
                     screen = pygame.display.set_mode((screen_width,screen_height))
                     FULLSCREEN = True
-            if ev.key == pygame.K_SPACE:
-                pos = pygame.mouse.get_pos()
-                one = One(pos[0], pos[1])
-                square_group.add(one)
+
         #close window
         if ev.type == pygame.QUIT:
             run = False
     #update screen
+    screen.blit(game_window, (200,0))
     pygame.display.flip()
 pygame.quit()
