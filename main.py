@@ -24,13 +24,18 @@ game_window = pygame.surface.Surface((game_window_width, game_window_height))
 #load images
 
 #define functions
-def expand(screen_width, screen_height, screen, game_window_width, game_window_height, game_window):
-    screen_width += 50
-    screen_height += 50
+
+def expand(screen_width, screen_height, screen, game_window_width, game_window_height, game_window, expand_amount):
+    screen_width += expand_amount
+    screen_height += expand_amount
     screen = pygame.display.set_mode((screen_width,screen_height))
     game_window_width = screen_width - shop_size
     game_window_height = screen_height
     game_window = pygame.surface.Surface((game_window_width, game_window_height))
+
+    for square in square_group:
+        square.x += expand_amount/2
+        square.y += expand_amount/2
 
     return screen_width, screen_height, screen, game_window_width, game_window_height, game_window
 
@@ -65,9 +70,11 @@ class One(pygame.sprite.Sprite):
         self.y = centery - self.height/2
         self.centerx = centerx
         self.centery = centery
-        self.rect = pygame.rect.Rect(self.x, self.y, self.width, self.height)
-        self.image = pygame.image.load('block_1.png')
+        self.image = pygame.image.load('block_1.png').convert_alpha()
         self.image = pygame.transform.scale(self.image, (self.width, self.height))
+        self.mask = pygame.mask.from_surface(self.image)
+        self.rotation_count = 0
+        
     
     def update(self):
         dx = 0
@@ -88,29 +95,46 @@ class One(pygame.sprite.Sprite):
             dy *= -1
 
         #collision
+        self.mask = pygame.mask.from_surface(self.image.convert_alpha())
+
         for square in square_group:
             if not square == self:
-                drect = pygame.rect.Rect(self.x +dx, self.y+ dy, self.width, self.height)
-                
-                if pygame.Rect.colliderect(self.rect, square.rect):
-                        xdistance = self.centerx - square.centerx
-                        dx = xdistance//8
-                        ydistance = self.centery - square.centery
-                        dy = ydistance//8
+                if self.mask.overlap(square.mask, (self.centerx - square.centerx ,self.centery - square.centery)):
+                        xdistance = self.centerx - square.centerx 
+                        dx = xdistance//(self.width /4)
+                        ydistance = self.centery - square.centery 
+                        dy = ydistance //(self.height /4)
+                        break
                 else:
-                    if pygame.Rect.colliderect(drect, square.rect):
+                    if self.mask.overlap(square.mask, (self.centerx - square.centerx + dx, self.centery - square.centery +dy)):
                         dx = 0
                         dy = 0
-                
 
         #update position
         self.x += dx
         self.y += dy
         self.centerx = self.x + self.width/2
         self.centery = self.y + self.height/2
-        self.rect = pygame.rect.Rect(self.x, self.y, self.width, self.height)
-        game_window.blit(self.image, self.rect)
+        self.rect = self.image.get_rect( center = (self.centerx, self.centery))
+        game_window.blit(self.image,self.rect)
+        
 
+
+    def rotate(self, degree):
+        if self.rotation_count == 360 - degree:
+            self.image = pygame.image.load('block_1.png').convert_alpha()
+            self.image = pygame.transform.scale(self.image, (self.width, self.height))
+            self.rotation_count = 0
+            
+        elif self.rotation_count == 180- degree:
+            self.image = pygame.image.load('block_1.png').convert_alpha()
+            self.image = pygame.transform.scale(self.image, (self.width, self.height))
+            self.image = pygame.transform.flip(self.image,True , True)
+            self.rotation_count += degree
+
+        else:
+            self.image = pygame.transform.rotate(self.image, degree)
+            self.rotation_count += degree
 #create instances
 square_group = pygame.sprite.Group()
 p= point(game_window_width/2, game_window_height/2)
@@ -131,6 +155,17 @@ while run:
     p.update()
 
     for ev in pygame.event.get():
+        #mousepresses
+        if ev.type == pygame.MOUSEBUTTONDOWN:
+            #rotate squares
+            pos = pygame.mouse.get_pos() 
+            if 0<pos[0] - shop_size < game_window_width//2:
+                for square in square_group:
+                    square.rotate(45)
+                print('rotate left')
+            elif pos[0] -shop_size >game_window_width//2:
+                print ('rotate right')
+            
         #keypresses
         #fullscreen
         if ev.type == pygame.KEYDOWN:
@@ -141,16 +176,21 @@ while run:
                 square_group.add(one)
             if ev.key == pygame.K_e:
                 #expand the window on both axises
-                screen_width, screen_height, screen, game_window_width, game_window_height, game_window =expand(screen_width, screen_height, screen, game_window_width, game_window_height, game_window)
-            
-            if ev.key == pygame.K_f:
+                screen_width, screen_height, screen, game_window_width, game_window_height, game_window =expand(screen_width, screen_height, screen, game_window_width, game_window_height, game_window, 50)
+                #check for fullscreen
                 if FULLSCREEN:
                     screen = pygame.display.set_mode((screen_width,screen_height), pygame.SCALED|pygame.FULLSCREEN)
-                    FULLSCREEN = False
+                    
                 else:
                     screen = pygame.display.set_mode((screen_width,screen_height))
-                    FULLSCREEN = True
-
+                    
+            #FULLSCREEN
+            if ev.key == pygame.K_f:
+                FULLSCREEN= not FULLSCREEN
+                if FULLSCREEN:
+                    screen = pygame.display.set_mode((screen_width,screen_height), pygame.SCALED|pygame.FULLSCREEN)
+                else:
+                    screen = pygame.display.set_mode((screen_width,screen_height))
         #close window
         if ev.type == pygame.QUIT:
             run = False
