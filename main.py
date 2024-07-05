@@ -4,8 +4,8 @@ clock = pygame.time.Clock()
 
 #define game variables
 FULLSCREEN = False
-screen_width = 600
-screen_height = 400
+screen_width = 1200
+screen_height = 800
 gravity = 1
 floor= screen_height - 200
 FPS = 60
@@ -15,7 +15,7 @@ dt = clock.tick(FPS)/25
 screen = pygame.display.set_mode((screen_width,screen_height), )
 
 #set game window
-shop_size = 200
+shop_size = 400
 game_window_width = screen_width - shop_size
 game_window_height = screen_height
 
@@ -25,9 +25,9 @@ game_window = pygame.surface.Surface((game_window_width, game_window_height))
 one_img =pygame.image.load('block_1.png').convert_alpha()
 cen1_img =pygame.image.load('center_1.png').convert_alpha()
 cen2_img =pygame.image.load('center_2.png').convert_alpha()
+cen3_img = pygame.image.load('center_3.png').convert_alpha()
 
 center_images = [cen1_img, cen2_img]
-
 #define functions
 def center_ang(origin, pivot):
     y = pivot[1] -origin[1]
@@ -40,13 +40,14 @@ def center_ang(origin, pivot):
         ang += 180
     
     return ang
-def rotate_on_pivot(image, angle, pivot, origin):
+def rotate_on_pivot(image, angle, pivotangle, pivot, origin):
+    
     surf = pygame.transform.rotate(image, angle)
 
     radius = math.hypot(origin[0]-pivot[0], origin[1]- pivot[1])
 
-    offsetx = pivot[0]+ math.cos(math.radians(angle))*(radius)
-    offsety = pivot[1] + math.sin(math.radians(-angle))*(radius)
+    offsetx = pivot[0]+ math.cos(math.radians(pivotangle))*(radius)
+    offsety = pivot[1] + math.sin(math.radians(-pivotangle))*(radius)
 
     rect= surf.get_rect(center=(offsetx, offsety))
 
@@ -76,8 +77,8 @@ class center():
     def __init__(self, x,y):
         self.centerx = x
         self.centery = y
-        self.width = 100
-        self.height = 100
+        self.width = 75
+        self.height = 75
         self.x = self.centerx - self.width/2
         self.y = self.centery - self.width/2
         self.index = 0
@@ -87,15 +88,16 @@ class center():
         self.da = 0
         self.rect = self.image_og.get_rect(center= (self.centerx, self.centery))
         self.mask = pygame.mask.from_surface(self.image_og)
+        self.factor = 360/(self.index +3) 
     def update(self):
 
         c.centerx = game_window_width/2
         c.centery = game_window_height/2
         self.image_og = center_images[self.index]
         self.image_og = pygame.transform.scale(self.image_og, (self.width, self.height))
-        
+        self.factor = 360/(self.index +3)
         #set rotation
-        self.image, self.rect = rotate_on_pivot(self.image_og, self.center_ang +self.da, (self.centerx, self.centery), (self.centerx, self.centery))
+        self.image, self.rect = rotate_on_pivot(self.image_og, self.center_ang +self.da, self.center_ang +self.da, (self.centerx, self.centery), (self.centerx, self.centery))
 
         self.centerx = self.rect.centerx
         self.centery = self.rect.centery
@@ -109,15 +111,16 @@ class center():
             self.index +=1
     def rotate(self,ang):
         for square in square_group:
-            square.da += ang
+            if square.collided:
+                square.da += ang
         self.da += ang
 
 
 class One(pygame.sprite.Sprite):
     def __init__(self, centerx, centery,):
         pygame.sprite.Sprite.__init__(self)
-        self.width = 40
-        self.height = 40
+        self.width = 30
+        self.height = 30
         self.mass = self.width*self.height/800
         self.x = centerx - self.width/2
         self.y = centery - self.height/2
@@ -128,8 +131,9 @@ class One(pygame.sprite.Sprite):
         self.mask = pygame.mask.from_surface(self.image)
         self.center_ang = center_ang((c.centerx, c.centery),(self.centerx, self.centery))
         self.da = 0
-        
+        self.angle =(self.center_ang - c.factor/2) //c.factor*c.factor
         self.rect = self.image.get_rect(center = (self.centerx, self.centery))
+        self.collided = False
 
     def expand(self,x_ratio, y_ratio):
         
@@ -162,41 +166,48 @@ class One(pygame.sprite.Sprite):
         #collision
         for square in square_group:
             if not square == self:
-                if square.mask.overlap(self.mask, (self.x - square.x ,self.y - square.y)):
-                    if self.width == square.width and self.height == square.height:
-                        self.expand(1.25,1.25)
-                        self.x = (self.x+square.x)/2
-                        self.y = (self.y+square.y)/2
-                        square.kill()
-                    else:
-                        xdistance = self.centerx - square.centerx 
-                        dx = xdistance//(self.width)
-                        ydistance = self.centery - square.centery
-                        dy = ydistance //(self.height)
-                        break
-                else:
-                    if square.mask.overlap(self.mask, (self.x - square.x + dx, self.y - square.y +dy)):
+                self.drect = pygame.rect.Rect(self.x + dx, self.y + dy, self.width, self.height)
+                if pygame.rect.Rect.colliderect(self.rect, square.rect):
+                    if square.mask.overlap(self.mask, (self.x - square.x ,self.y - square.y)):
                         if self.width == square.width and self.height == square.height:
-                            self.expand(1.25,1.25)
+                            self.expand(1.5,1.5)
                             self.x = (self.x+square.x)/2
                             self.y = (self.y+square.y)/2
                             square.kill()
-                            self.mask = pygame.mask.from_surface(self.image)
                         else:
-                            if -0.1 < self.x + self.width -square.x < 0.1 or -0.1 <square.x + square.width - self.x < 0.1:
-                                dx = 0
-                            elif -0.1<self.y + self.height -square.y < 0.1 or -0.1<square.y + square.height - self.y<0.1:
-                                dy = 0
+                            xdistance = self.centerx - square.centerx 
+                            dx = xdistance//(self.width*4)
+                            ydistance = self.centery - square.centery
+                            dy = ydistance //(self.height*4)
+                            
+                            self.collided = True
+                            break
+                else:
+                    if pygame.rect.Rect.colliderect(self.drect, square.rect):
+                        if square.mask.overlap(self.mask, (self.x - square.x + dx, self.y - square.y +dy)):
+                            if self.width == square.width and self.height == square.height:
+                                self.expand(1.5,1.5)
+                                self.x = (self.x+square.x)/2
+                                self.y = (self.y+square.y)/2
+                                square.kill()
+                                self.mask = pygame.mask.from_surface(self.image)
                             else:
-                                dx *= 0.001/self.mass
-                                dy *= 0.001/self.mass
+                                if -0.1 < self.x + self.width -square.x < 0.1 or -0.1 <square.x + square.width - self.x < 0.1:
+                                    dx = 0
+                                elif -0.1<self.y + self.height -square.y < 0.1 or -0.1<square.y + square.height - self.y<0.1:
+                                    dy = 0
+                                else:
+                                    dx *= 0.001
+                                    dy *= 0.001
+
+                                self.collided = True
 
         #collision with the center
         if c.mask.overlap(self.mask, (self.x - c.x ,self.y - c.y)):
             xdistance = self.centerx - c.centerx 
-            dx = xdistance//(self.width)
+            dx = xdistance//(self.width*4)
             ydistance = self.centery - c.centery
-            dy = ydistance //(self.height)
+            dy = ydistance //(self.height*4)
         else:
             if c.mask.overlap(self.mask,(self.x - c.x + dx, self.y - c.y +dy)):
                 if -0.3 < self.x + self.width -c.x < 0.3 or -0.3 <c.x + c.width - self.x < 0.3:
@@ -204,24 +215,27 @@ class One(pygame.sprite.Sprite):
                 elif -0.3<self.y + self.height -c.y < 0.3 or -0.3<c.y + c.height - self.y<0.3:
                     dy = 0
                 else:
-                    dx *= 0.001/self.mass
-                    dy *= 0.001/self.mass
-
+                    dx *= 0.001
+                    dy *= 0.001
+                self.collided = True
 
         #update position
         self.x += dx
         self.y += dy
 
         #update size images
-        
         width = self.image.get_width()
         height = self.image.get_height()
         self.centerx = self.x  + width/2 
         self.centery = self.y  + height/2 
+        if self.collided:
+            self.angle =(self.center_ang - c.factor/2) //c.factor*c.factor
+            self.angle += c.da
+            
 
         #set rotation
-        self.image, self.rect = rotate_on_pivot(self.image_og, self.center_ang +self.da, (c.centerx, c.centery), (self.centerx, self.centery))
-
+        self.image, self.rect = rotate_on_pivot(self.image_og,self.angle, self.center_ang +self.da, (c.centerx, c.centery), (self.centerx, self.centery))
+        
         self.centerx = self.rect.centerx
         self.centery = self.rect.centery
         self.x = self.rect.x
@@ -246,7 +260,7 @@ while run:
     clock.tick(FPS)
     #screen.blit((0,0),bg_img)
     screen.fill((100,100,100))
-    game_window.fill((0,0,30))
+    game_window.fill((10,0,30))
 
     #planet rotation
     c.rotate(0.05)
@@ -262,9 +276,9 @@ while run:
             pos = pygame.mouse.get_pos() 
             if 0<pos[0] - shop_size < game_window_width//2:
                 
-                c.rotate(30)
+                c.rotate(c.factor/2)
             elif pos[0] -shop_size >game_window_width//2:
-                c.rotate(-30)
+                c.rotate(-c.factor/2)
                 
         
         #keypresses
@@ -281,7 +295,6 @@ while run:
                 #check for fullscreen
                 if FULLSCREEN:
                     screen = pygame.display.set_mode((screen_width,screen_height), pygame.SCALED|pygame.FULLSCREEN)
-                    
                 else:
                     screen = pygame.display.set_mode((screen_width,screen_height))
             if ev.key == pygame.K_a:
@@ -297,6 +310,6 @@ while run:
         if ev.type == pygame.QUIT:
             run = False
     #update screen
-    screen.blit(game_window, (200,0))
+    screen.blit(game_window, (shop_size,0))
     pygame.display.flip()
 pygame.quit()

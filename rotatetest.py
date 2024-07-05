@@ -4,21 +4,23 @@ screen = pygame.display.set_mode((800,800))
 
 clock = pygame.time.Clock()
 FPS = 60
+
 def center_ang(origin, pivot):
     y = pivot[1] -origin[1]
     x = pivot[0] - origin[0]
     ang= math.degrees(math.atan(-y/x))
     if origin[0] < pivot[0]:
         ang += 180
-    
+   
     return ang
-def rotate_on_pivot(image, angle, pivot, origin):
+def rotate_on_pivot(image, angle, pivotangle, pivot, origin):
+    
     surf = pygame.transform.rotate(image, angle)
 
     radius = math.hypot(origin[0]-pivot[0], origin[1]- pivot[1])
 
-    offsetx = pivot[0]+ math.cos(math.radians(angle))*(radius)
-    offsety = pivot[1] + math.sin(math.radians(-angle))*(radius)
+    offsetx = pivot[0]+ math.cos(math.radians(pivotangle))*(radius)
+    offsety = pivot[1] + math.sin(math.radians(-pivotangle))*(radius)
 
     rect= surf.get_rect(center=(offsetx, offsety))
 
@@ -33,13 +35,19 @@ class spinnn(pygame.sprite.Sprite):
         self.image = pygame.image.load('Man.png')
         self.image_og = pygame.transform.scale(self.image,(self.width, self.width))
         self.dangle = 0
-
+        self.center_ang = center_ang((self.centerx, self.centery),(400,400))
         self.rect = self.image.get_rect(center = (self.centerx, self.centery))
+        self.factor = 90
+        self.angle = (self.center_ang - self.factor/2) //self.factor*self.factor 
+
     def update(self):
-        self.angle = center_ang((self.centerx, self.centery),(400,400))
+        
+
         self.dangle +=2
-        self.image, rect =rotate_on_pivot(self.image_og, self.angle + self.dangle, (400,400),(self.centerx,self.centery))
-        screen.blit(self.image,rect )
+        
+        self.image, self.rect =rotate_on_pivot(self.image_og,self.angle, self.center_ang + self.dangle, (400,400),(self.centerx,self.centery))
+        
+        screen.blit(self.image,self.rect )
         if self.dangle >= 360:
             self.dangle -=360
     
